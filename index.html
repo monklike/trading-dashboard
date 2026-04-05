@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Futures Trading Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161d;
+    --surface2: #1a1e28;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf0;
+    --muted: #7a7f8e;
+    --hint: #484d5a;
+    --green: #1D9E75;
+    --green-light: #9FE1CB;
+    --red: #E24B4A;
+    --red-light: #F09595;
+    --blue: #378ADD;
+    --amber: #BA7517;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding-bottom: 18px;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .header-left h1 {
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .header-left p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-family: var(--mono);
+  }
+
+  .header-right {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .metric {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+
+  .metric-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+
+  .metric-value {
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .metric-value.pos { color: var(--green); }
+  .metric-value.neg { color: var(--red); }
+
+  .metric-sub {
+    font-size: 11px;
+    color: var(--hint);
+    margin-top: 4px;
+    font-family: var(--mono);
+  }
+
+  .chart-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    font-family: var(--mono);
+    letter-spacing: 0.04em;
+    margin-bottom: 14px;
+  }
+
+  .legend-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 10px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .trade-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+
+  .trade-table th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 400;
+    padding: 8px 10px;
+    border-bottom: 0.5px solid var(--border);
+    letter-spacing: 0.03em;
+  }
+
+  .trade-table td {
+    padding: 9px 10px;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text);
+  }
+
+  .trade-table tr:last-child td { border-bottom: none; }
+
+  .trade-table tr:hover td { background: var(--surface2); }
+
+  .badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+  }
+
+  .badge.long { background: rgba(29,158,117,0.15); color: #5DCAA5; }
+  .badge.short { background: rgba(226,75,74,0.15); color: #F09595; }
+
+  .ai-panel {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin-top: 12px;
+  }
+
+  .ai-output {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.7;
+    min-height: 52px;
+    margin: 12px 0;
+    padding: 12px 14px;
+    background: var(--surface2);
+    border-radius: 8px;
+    border: 0.5px solid var(--border);
+  }
+
+  .ai-output.placeholder { color: var(--muted); }
+
+  .ai-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .ai-btn {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 0.5px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .ai-btn:hover {
+    background: var(--surface2);
+    color: var(--text);
+  }
+
+  .api-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .api-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    outline: none;
+  }
+
+  .api-input:focus { border-color: rgba(255,255,255,0.25); }
+  .api-input::placeholder { color: var(--hint); }
+
+  .api-save-btn {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 0.5px solid var(--border2);
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .api-save-btn:hover { color: var(--text); }
+
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid var(--hint);
+    border-top-color: var(--muted);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ask-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .ask-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+  }
+
+  .ask-input:focus { border-color: rgba(255,255,255,0.25); }
+  .ask-input::placeholder { color: var(--hint); }
+
+  .ask-btn {
+    font-size: 12px;
+    font-family: var(--mono);
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 0.5px solid rgba(55,138,221,0.4);
+    background: rgba(55,138,221,0.1);
+    color: #85B7EB;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .ask-btn:hover { background: rgba(55,138,221,0.18); }
+
+  @media (max-width: 768px) {
+    body { padding: 14px; }
+    .metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .chart-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Trading Performance</h1>
+    <p>NQ / MNQ Futures — 30 day view</p>
+  </div>
+  <div class="header-right" id="dateOut"></div>
+</div>
+
+<div class="metric-grid">
+  <div class="metric">
+    <div class="metric-label">NET P&L (30D)</div>
+    <div class="metric-value pos">+$4,320</div>
+    <div class="metric-sub">vs −$1,210 prior period</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">WIN RATE</div>
+    <div class="metric-value">62%</div>
+    <div class="metric-sub">49 of 79 trades</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">AVG R:R</div>
+    <div class="metric-value">1.84</div>
+    <div class="metric-sub">Target ≥ 1.5</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">MAX DRAWDOWN</div>
+    <div class="metric-value neg">−$1,640</div>
+    <div class="metric-sub">Day of 3/14</div>
+  </div>
+</div>
+
+<div class="chart-row">
+  <div class="card">
+    <div class="card-title">CUMULATIVE P&L</div>
+    <div class="legend-row">
+      <div class="legend-item"><span class="legend-dot" style="background:#1D9E75;"></span>Equity curve</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#E24B4A;"></span>Drawdown</div>
+    </div>
+    <div style="position:relative;width:100%;height:200px;"><canvas id="equityChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">R-MULTIPLE DISTRIBUTION</div>
+    <div style="position:relative;width:100%;height:230px;"><canvas id="distChart"></canvas></div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:12px;">
+  <div class="card-title">DAILY P&L BY SESSION</div>
+  <div class="legend-row">
+    <div class="legend-item"><span class="legend-dot" style="background:#378ADD;"></span>Globex</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#1D9E75;"></span>RTH</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#BA7517;"></span>Overnight</div>
+  </div>
+  <div style="position:relative;width:100%;height:150px;"><canvas id="sessionChart"></canvas></div>
+</div>
+
+<div class="card" style="margin-bottom:12px;">
+  <div class="card-title">RECENT TRADES</div>
+  <table class="trade-table">
+    <thead>
+      <tr>
+        <th>Date</th><th>Instrument</th><th>Side</th><th>Entry</th><th>Exit</th><th>Qty</th><th>P&L</th><th>R</th>
+      </tr>
+    </thead>
+    <tbody id="tradeBody"></tbody>
+  </table>
+</div>
+
+<div class="ai-panel">
+  <div class="card-title">AI TRADE ANALYST</div>
+
+  <div class="api-row">
+    <input class="api-input" type="password" id="apiKeyInput" placeholder="Paste your Anthropic API key (sk-ant-...)"/>
+    <button class="api-save-btn" onclick="saveKey()">Save key</button>
+  </div>
+
+  <div class="ai-output placeholder" id="aiOut">Enter your API key above, then ask anything about your trading performance.</div>
+
+  <div class="ask-row">
+    <input class="ask-input" id="customQ" placeholder="Ask a custom question..." onkeydown="if(event.key==='Enter') askCustom()"/>
+    <button class="ask-btn" onclick="askCustom()">Ask ↗</button>
+  </div>
+
+  <div class="ai-buttons">
+    <button class="ai-btn" onclick="askAI('What patterns do you see in my losing trades?')">Losing trade patterns ↗</button>
+    <button class="ai-btn" onclick="askAI('What session is my edge strongest in?')">Best session ↗</button>
+    <button class="ai-btn" onclick="askAI('How can I improve my R:R ratio based on these results?')">Improve R:R ↗</button>
+    <button class="ai-btn" onclick="askAI('Am I overtrading? Analyze my trade frequency.')">Overtrading check ↗</button>
+  </div>
+</div>
+
+<script>
+document.getElementById('dateOut').textContent = new Date().toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+
+const days = ['3/6','3/7','3/10','3/11','3/12','3/13','3/14','3/17','3/18','3/19','3/20','3/21','3/24','3/25','3/26','3/27','3/28','3/31','4/1','4/2'];
+const dailyPnl = [320,-180,450,210,-640,380,-1000,520,310,-220,480,190,620,-150,280,410,-80,590,340,460];
+let cum = 0;
+const equity = dailyPnl.map(v => { cum += v; return cum; });
+const dd = equity.map((v,i) => { const peak = Math.max(...equity.slice(0,i+1)); return Math.min(0, v - peak); });
+
+const gridColor = 'rgba(255,255,255,0.05)';
+const tickStyle = { font: { size: 10, family: "'DM Mono', monospace" }, color: '#7a7f8e' };
+
+new Chart(document.getElementById('equityChart'), {
+  type: 'line',
+  data: {
+    labels: days,
+    datasets: [
+      { label: 'Equity', data: equity, borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.06)', tension: 0.35, pointRadius: 2, pointBackgroundColor: '#1D9E75', fill: true },
+      { label: 'Drawdown', data: dd, borderColor: '#E24B4A', backgroundColor: 'rgba(226,75,74,0.05)', tension: 0.35, pointRadius: 0, fill: true, borderDash: [3,3] }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { ...tickStyle, autoSkip: true, maxRotation: 0 }, grid: { color: gridColor } },
+      y: { ticks: { ...tickStyle, callback: v => '$' + v.toLocaleString() }, grid: { color: gridColor } }
+    }
+  }
+});
+
+new Chart(document.getElementById('distChart'), {
+  type: 'bar',
+  data: {
+    labels: ['< -2R','-2 to -1R','-1 to 0','0 to 1R','1 to 2R','> 2R'],
+    datasets: [{ data: [4,8,18,21,16,12], backgroundColor: ['#7A1F1F','#A32D2D','#E24B4A','#5DCAA5','#1D9E75','#0F6E56'], borderRadius: 3 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { ...tickStyle }, grid: { color: gridColor } },
+      y: { ticks: { ...tickStyle }, grid: { color: gridColor } }
+    }
+  }
+});
+
+const sessionDays = ['3/6','3/7','3/10','3/11','3/12','3/13','3/14','3/17','3/18','3/19','3/20'];
+new Chart(document.getElementById('sessionChart'), {
+  type: 'bar',
+  data: {
+    labels: sessionDays,
+    datasets: [
+      { label: 'Globex', data: [80,-40,120,60,-200,90,-300,140,80,-60,120], backgroundColor: '#378ADD', borderRadius: 2 },
+      { label: 'RTH', data: [180,-100,260,110,-380,240,-600,310,180,-120,290], backgroundColor: '#1D9E75', borderRadius: 2 },
+      { label: 'Overnight', data: [60,-40,70,40,-60,50,-100,70,50,-40,70], backgroundColor: '#BA7517', borderRadius: 2 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { stacked: true, ticks: { ...tickStyle }, grid: { display: false } },
+      y: { stacked: true, ticks: { ...tickStyle, callback: v => '$' + v }, grid: { color: gridColor } }
+    }
+  }
+});
+
+const trades = [
+  { date:'4/2', inst:'NQ', side:'Long', entry:'18342', exit:'18394', qty:1, pnl:520, r:1.9 },
+  { date:'4/1', inst:'MNQ', side:'Short', entry:'18410', exit:'18388', qty:5, pnl:110, r:1.2 },
+  { date:'3/31', inst:'NQ', side:'Long', entry:'18280', exit:'18340', qty:2, pnl:600, r:2.1 },
+  { date:'3/28', inst:'MNQ', side:'Short', entry:'18455', exit:'18473', qty:5, pnl:-90, r:-0.7 },
+  { date:'3/27', inst:'NQ', side:'Long', entry:'18190', exit:'18234', qty:1, pnl:440, r:1.6 },
+  { date:'3/26', inst:'MNQ', side:'Long', entry:'18100', exit:'18114', qty:5, pnl:70, r:0.8 },
+];
+const tb = document.getElementById('tradeBody');
+trades.forEach(t => {
+  const row = document.createElement('tr');
+  const pc = t.pnl >= 0 ? '#5DCAA5' : '#F09595';
+  const rc = t.r >= 1 ? '#5DCAA5' : t.r >= 0 ? '#EF9F27' : '#F09595';
+  row.innerHTML = `
+    <td>${t.date}</td>
+    <td>${t.inst}</td>
+    <td><span class="badge ${t.side.toLowerCase()}">${t.side}</span></td>
+    <td>${t.entry}</td>
+    <td>${t.exit}</td>
+    <td>${t.qty}</td>
+    <td style="color:${pc};font-weight:500;">${t.pnl>=0?'+':''}$${t.pnl}</td>
+    <td style="color:${rc};">${t.r>=0?'+':''}${t.r.toFixed(1)}R</td>
+  `;
+  tb.appendChild(row);
+});
+
+let apiKey = localStorage.getItem('tradeAiKey') || '';
+if (apiKey) {
+  document.getElementById('apiKeyInput').value = '••••••••••••••••';
+  document.getElementById('aiOut').textContent = 'API key loaded. Ask me anything about your trading performance.';
+  document.getElementById('aiOut').classList.remove('placeholder');
+}
+
+function saveKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (val && val !== '••••••••••••••••') {
+    apiKey = val;
+    localStorage.setItem('tradeAiKey', val);
+    document.getElementById('apiKeyInput').value = '••••••••••••••••';
+    document.getElementById('aiOut').textContent = 'API key saved. Ask me anything about your trading performance.';
+    document.getElementById('aiOut').classList.remove('placeholder');
+  }
+}
+
+function askCustom() {
+  const q = document.getElementById('customQ').value.trim();
+  if (q) { document.getElementById('customQ').value = ''; askAI(q); }
+}
+
+const systemPrompt = `You are an expert futures trading performance analyst. The trader trades NQ and MNQ futures on a Topstep prop account.
+30-day performance data:
+- Net P&L: +$4,320 (vs -$1,210 prior period)
+- Win rate: 62% (49/79 trades)
+- Avg R:R: 1.84 (target ≥ 1.5)
+- Max drawdown: -$1,640 on 3/14
+- Sessions: RTH dominates edge, Globex decent, Overnight minimal
+- R distribution: 12 trades >2R, 16 between 1-2R, 21 between 0-1R, 18 small losses, 8 medium losses, 4 large losses (<-2R)
+- Instruments: NQ (1 contract) and MNQ (5 contracts)
+- Recent trend: strong recovery since 3/14 drawdown
+
+Be concise, specific, and actionable. Max 3-4 sentences. Speak like a seasoned prop trader mentor, not a textbook.`;
+
+async function askAI(question) {
+  const out = document.getElementById('aiOut');
+  if (!apiKey) {
+    out.textContent = 'Please enter your Anthropic API key above first.';
+    out.classList.add('placeholder');
+    return;
+  }
+  out.innerHTML = '<span class="spinner"></span> Analyzing...';
+  out.classList.remove('placeholder');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: question }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) { out.textContent = 'API error: ' + data.error.message; return; }
+    out.textContent = data.content?.map(b => b.text || '').join('') || 'No response.';
+  } catch(e) {
+    out.textContent = 'Network error. Check your API key and try again.';
+  }
+}
+</script>
+</body>
+</html>
